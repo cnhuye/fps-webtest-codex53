@@ -340,7 +340,7 @@
     composer.addPass(fxaaPass);
 
     const controls = new PointerLockControls(camera, document.body);
-    scene.add(controls.getObject());
+    scene.add(controls.object);
 
     const clock = new THREE.Clock();
     const textureLoader = new THREE.TextureLoader();
@@ -469,7 +469,7 @@
       buildWeapon();
       buildDust();
       spawnEnemies(state.totalEnemies);
-      controls.getObject().position.set(0, EYE_HEIGHT, 12.5);
+      controls.object.position.set(0, EYE_HEIGHT, 12.5);
       updateHUD();
       objectiveTextEl.textContent = "肃清区域内全部敌人";
       renderer.setAnimationLoop(tick);
@@ -938,7 +938,7 @@
     }
 
     function updatePlayer(delta) {
-      const player = controls.getObject();
+      const player = controls.object;
       const sprintMul = input.sprint ? 1.48 : 1;
       const targetSpeed = 6.8 * sprintMul;
       const axisForward = Number(input.forward) - Number(input.back);
@@ -1071,7 +1071,7 @@
     }
 
     function updateEnemies(delta) {
-      const playerPos = controls.getObject().position;
+      const playerPos = controls.object.position;
 
       for (const enemy of enemies) {
         if (!enemy.alive) {
@@ -1129,7 +1129,7 @@
     function enemyShoot(enemy, dist) {
       const muzzlePos = new THREE.Vector3();
       enemy.muzzle.getWorldPosition(muzzlePos);
-      const targetPos = controls.getObject().position.clone().add(new THREE.Vector3(
+      const targetPos = controls.object.position.clone().add(new THREE.Vector3(
         (Math.random() - 0.5) * 0.36,
         0.2 + (Math.random() - 0.5) * 0.2,
         (Math.random() - 0.5) * 0.36,
