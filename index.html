@@ -477,35 +477,35 @@
 
     async function loadVisualAssets() {
       const floorColor = await loadTexture(
-        "https://cdn.jsdelivr.net/gh/mrdoob/three.js@r170/examples/textures/hardwood2_diffuse.jpg",
+        "https://threejs.org/examples/textures/hardwood2_diffuse.jpg",
         { repeatX: 12, repeatY: 10, color: true },
       );
       const floorBump = await loadTexture(
-        "https://cdn.jsdelivr.net/gh/mrdoob/three.js@r170/examples/textures/hardwood2_bump.jpg",
+        "https://threejs.org/examples/textures/hardwood2_bump.jpg",
         { repeatX: 12, repeatY: 10, color: false },
       );
       const floorRough = await loadTexture(
-        "https://cdn.jsdelivr.net/gh/mrdoob/three.js@r170/examples/textures/hardwood2_roughness.jpg",
+        "https://threejs.org/examples/textures/hardwood2_roughness.jpg",
         { repeatX: 12, repeatY: 10, color: false },
       );
       const wallColor = await loadTexture(
-        "https://cdn.jsdelivr.net/gh/mrdoob/three.js@r170/examples/textures/brick_diffuse.jpg",
+        "https://threejs.org/examples/textures/brick_diffuse.jpg",
         { repeatX: 6, repeatY: 2.2, color: true },
       );
       const wallBump = await loadTexture(
-        "https://cdn.jsdelivr.net/gh/mrdoob/three.js@r170/examples/textures/brick_bump.jpg",
+        "https://threejs.org/examples/textures/brick_bump.jpg",
         { repeatX: 6, repeatY: 2.2, color: false },
       );
       const wallRough = await loadTexture(
-        "https://cdn.jsdelivr.net/gh/mrdoob/three.js@r170/examples/textures/brick_roughness.jpg",
+        "https://threejs.org/examples/textures/brick_roughness.jpg",
         { repeatX: 6, repeatY: 2.2, color: false },
       );
       const puddleNormal = await loadTexture(
-        "https://cdn.jsdelivr.net/gh/mrdoob/three.js@r170/examples/textures/water/Water_1_M_Normal.jpg",
+        "https://threejs.org/examples/textures/water/Water_1_M_Normal.jpg",
         { repeatX: 2, repeatY: 2, color: false },
       );
 
-      const hdr = await loadHdr("https://cdn.jsdelivr.net/gh/mrdoob/three.js@r170/examples/textures/equirectangular/venice_sunset_1k.hdr");
+      const hdr = await loadHdr("https://threejs.org/examples/textures/equirectangular/venice_sunset_1k.hdr");
       if (hdr) {
         hdr.mapping = THREE.EquirectangularReflectionMapping;
         scene.environment = hdr;
@@ -1398,8 +1398,17 @@
     }
 
     async function loadTexture(url, options) {
-      const { repeatX = 1, repeatY = 1, color = false } = options || {};
+      const { repeatX = 1, repeatY = 1, color = false, timeoutMs = 7000 } = options || {};
       return new Promise((resolve) => {
+        let settled = false;
+        const done = (result) => {
+          if (settled) return;
+          settled = true;
+          clearTimeout(timer);
+          resolve(result);
+        };
+        const timer = setTimeout(() => done(null), timeoutMs);
+
         textureLoader.load(
           url,
           (texture) => {
@@ -1408,17 +1417,26 @@
             texture.repeat.set(repeatX, repeatY);
             texture.anisotropy = renderer.capabilities.getMaxAnisotropy();
             if (color) texture.colorSpace = THREE.SRGBColorSpace;
-            resolve(texture);
+            done(texture);
           },
           undefined,
-          () => resolve(null),
+          () => done(null),
         );
       });
     }
 
-    async function loadHdr(url) {
+    async function loadHdr(url, timeoutMs = 7000) {
       return new Promise((resolve) => {
-        new RGBELoader().load(url, resolve, undefined, () => resolve(null));
+        let settled = false;
+        const done = (result) => {
+          if (settled) return;
+          settled = true;
+          clearTimeout(timer);
+          resolve(result);
+        };
+        const timer = setTimeout(() => done(null), timeoutMs);
+
+        new RGBELoader().load(url, (texture) => done(texture), undefined, () => done(null));
       });
     }
 
