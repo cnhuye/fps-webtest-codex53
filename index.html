@@ -369,6 +369,7 @@
       missionComplete: false,
       dead: false,
       damageFlash: 0,
+      softLock: false,
     };
 
     const input = {
@@ -410,15 +411,11 @@
     let pausedByEscape = false;
 
     startBtnEl.addEventListener("click", () => {
-      if (state.dead || state.missionComplete) {
-        window.location.reload();
-        return;
-      }
-      controls.lock();
-      initAudio();
+      startSession();
     });
 
     controls.addEventListener("lock", () => {
+      state.softLock = false;
       overlayEl.classList.add("hidden");
       pausedByEscape = false;
       objectiveTextEl.textContent = state.missionComplete ? "任务完成，按 Esc 查看结算" : "肃清所有敌人";
@@ -443,6 +440,18 @@
       if (event.code === "KeyD") input.right = true;
       if (event.code === "ShiftLeft" || event.code === "ShiftRight") input.sprint = true;
       if (event.code === "KeyR") startReload();
+      if (event.code === "Escape" && state.softLock && !state.dead && !state.missionComplete) {
+        if (overlayEl.classList.contains("hidden")) {
+          pausedByEscape = true;
+          overlayTitleEl.textContent = "已暂停";
+          overlayHintEl.textContent = "战场冻结中，点击按钮继续作战";
+          startBtnEl.textContent = "继续作战";
+          overlayEl.classList.remove("hidden");
+          return;
+        }
+        pausedByEscape = false;
+        overlayEl.classList.add("hidden");
+      }
       if (event.code === "Enter" && (state.dead || state.missionComplete)) {
         window.location.reload();
       }
@@ -481,7 +490,31 @@
       controls.object.position.set(0, EYE_HEIGHT, 12.5);
       updateHUD();
       objectiveTextEl.textContent = "肃清区域内全部敌人";
+      exposeDebugApi();
       renderer.setAnimationLoop(tick);
+    }
+
+    function startSession() {
+      if (state.dead || state.missionComplete) {
+        window.location.reload();
+        return;
+      }
+      state.softLock = false;
+      controls.lock();
+      initAudio();
+      window.setTimeout(() => {
+        if (!controls.isLocked && !state.dead && !state.missionComplete) {
+          enableSoftLock();
+        }
+      }, 180);
+    }
+
+    function enableSoftLock() {
+      state.softLock = true;
+      pausedByEscape = false;
+      overlayEl.classList.add("hidden");
+      objectiveTextEl.textContent = "肃清区域内全部敌人";
+      initAudio();
     }
 
     async function loadVisualAssets() {
@@ -932,7 +965,7 @@
       const delta = Math.min(clock.getDelta(), 0.05);
       worldClock.t += delta;
 
-      if (controls.isLocked && !state.dead && !state.missionComplete) {
+      if ((controls.isLocked || state.softLock) && !state.dead && !state.missionComplete && !pausedByEscape) {
         updatePlayer(delta);
         updateCombat(delta);
         updateEnemies(delta);
@@ -991,7 +1024,7 @@
     }
 
     function attemptFire() {
-      if (!controls.isLocked || state.dead || state.missionComplete) return;
+      if (!(controls.isLocked || state.softLock) || state.dead || state.missionComplete || pausedByEscape) return;
       if (state.reloading || state.shotCooldown > 0) return;
       if (state.ammo <= 0) {
         startReload();
@@ -1555,6 +1588,44 @@
       gain.connect(masterGain);
       osc.start(now);
       osc.stop(now + 0.22);
+    }
+
+    function exposeDebugApi() {
+      window.__miniFpsDebug = {
+        startSoftLock: () => enableSoftLock(),
+        getState: () => ({
+          hp: state.hp,
+          ammo: state.ammo,
+          reserve: state.reserve,
+          kills: state.kills,
+          missionComplete: state.missionComplete,
+          dead: state.dead,
+          softLock: state.softLock,
+          pointerLocked: controls.isLocked,
+          pausedByEscape,
+        }),
+        setPlayer: (x, z) => {
+          if (Number.isFinite(x)) controls.object.position.x = x;
+          if (Number.isFinite(z)) controls.object.position.z = z;
+        },
+        setLook: (yaw, pitch) => {
+          if (Number.isFinite(yaw)) controls.object.rotation.y = yaw;
+          if (Number.isFinite(pitch)) camera.rotation.x = pitch;
+        },
+        fireBurst: (count = 1) => {
+          const total = Math.max(1, Math.min(120, Number(count) || 1));
+          for (let i = 0; i < total; i += 1) {
+            state.shotCooldown = 0;
+            attemptFire();
+          }
+        },
+        killAll: () => {
+          for (const enemy of enemies) {
+            if (enemy.alive) killEnemy(enemy);
+          }
+        },
+        enemyCount: () => enemies.filter((enemy) => enemy.alive).length,
+      };
     }
   </script>
 </body>
