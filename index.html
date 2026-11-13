@@ -1612,6 +1612,17 @@
           if (Number.isFinite(yaw)) controls.object.rotation.y = yaw;
           if (Number.isFinite(pitch)) camera.rotation.x = pitch;
         },
+        setHp: (value) => {
+          if (!Number.isFinite(value)) return;
+          state.hp = THREE.MathUtils.clamp(value, 0, 100);
+          updateHUD();
+        },
+        forceFail: () => {
+          if (state.dead || state.missionComplete) return;
+          state.hp = 0;
+          updateHUD();
+          onPlayerDead();
+        },
         fireBurst: (count = 1) => {
           const total = Math.max(1, Math.min(120, Number(count) || 1));
           for (let i = 0; i < total; i += 1) {
